@@ -2,205 +2,142 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 
-const App = () => {
+const Calculator = () => {
   const [equation, setEquation] = React.useState('0');
-  const [inputs, setInputs] = React.useState({ numbers: [], operations: [] });
   const [current, setCurrent] = React.useState('0');
+  const [inputs, setInputs] = React.useState({ numbers: [], operations: [] });
 
   const handleClick = e => {
-    switch (typeof e) {
-      case 'number':
-        if (equation === '0') {
-          setEquation(`${e}`);
-          if (e !== '0') setCurrent(`${e}`);
+    let newEQ = equation;
+    if (newEQ === 'Syntax Error') newEQ = '0';
+    if (/[\d.]/.test(e)) {
+      if (e === '.' && current.includes('.')) return;
+      if (newEQ.length === 1 && newEQ[0] === '0') newEQ = '';
+      setEquation(`${newEQ}${e}`);
+      setCurrent(`${current}${e}`);
+    } else {
+      setCurrent('0');
+      if (/[+\-\x/]/.test(e)) {
+        const inputsCopy = Object.assign({}, inputs);
+        if (/[+\-\x/]/.test(newEQ[newEQ.length - 1])) {
+          inputsCopy.operations.pop();
+          newEQ = newEQ
+            .split('')
+            .slice(0, newEQ.length - 1)
+            .join('');
         } else {
-          setEquation(`${equation}${e}`);
-          setCurrent(`${current}${e}`);
+          inputsCopy.numbers.push(Number.parseFloat(current));
         }
-
-        break;
-      case 'string':
-        if (e === '.') {
-          if (!current.includes('.')) {
-            setEquation(`${equation}${e}`);
-            setCurrent(`${current}${e}`);
-          }
-        } else if (e === 'ac') {
-          setEquation('0');
+        inputsCopy.operations.push(e);
+        setEquation(`${newEQ}${e}`);
+        setInputs(inputsCopy);
+      } else if (e === 'ac') {
+        setEquation('0');
+        setInputs({ numbers: [], operations: [] });
+      } else if (e === 'equals') {
+        if (/[+\-\x/]/.test(newEQ[newEQ.length - 1])) {
+          setEquation('Syntax Error');
           setInputs({ numbers: [], operations: [] });
-          setCurrent('0');
-        } else if (e === 'equals') {
-          if (current === '0') {
-            const newInputs = Object.assign({}, inputs);
-            newInputs.numbers.push(Number.parseFloat(current));
-            setInputs(newInputs);
-            setCurrent('0');
-            setEquation('Syntax Error');
-          } else {
-            const newInputs = Object.assign({}, inputs);
-            newInputs.numbers.push(Number.parseFloat(current));
-            setInputs(newInputs);
-            setCurrent('0');
-            setEquation('0');
-            calculate();
-          }
         } else {
-          let eq = equation;
-          if (typeof eq !== 'string') eq = eq.toString();
-
-          eq = eq.split('');
-          const newInputs = Object.assign({}, inputs);
-
-          if (/[\+\-\x\/]/.test(equation[equation.length - 1])) {
-            newInputs.operations.pop();
-            eq.pop();
-          } else {
-            newInputs.numbers.push(Number.parseFloat(current));
-          }
-
-          eq = eq.join('');
-          newInputs.operations.push(e);
-
-          setCurrent('0');
-          setInputs(newInputs);
-          setEquation(`${eq}${e}`);
+          const inputsCopy = Object.assign({}, inputs);
+          inputsCopy.numbers.push(Number.parseFloat(current));
+          calculate(inputsCopy);
         }
-
-        break;
-      default:
-        return;
+      }
     }
   };
 
-  const reset = () => {};
-
-  const calculate = () => {
-    let numbers = [...inputs.numbers];
-    let operations = [...inputs.operations];
-
-    let did = 0;
-
-    // MDAS RULE
+  const calculate = inputsCopy => {
+    let numbers = [...inputsCopy.numbers];
+    let operations = [...inputsCopy.operations];
+    // === MDAS RULE === \\
     // Multiplication || Division
-    if (/[x\/]/g.test(operations.join(''))) {
-      operations = operations.filter((operation, index) => {
-        if (/[x\/]/.test(operation)) {
-          const i = index - did;
-          let operate;
-
-          if (operation === 'x') {
-            operate = numbers[i] * numbers[i + 1];
-          } else {
-            operate = numbers[i] / numbers[i + 1];
-          }
-
-          numbers.splice(i, 2, operate);
-          did++;
-        }
-
-        return !/[x\/]/.test(operation);
-      });
-    }
-
-    did = 0;
-    // Addition || Subtraction
+    let did = 0;
     operations = operations.filter((operation, index) => {
-      const i = index - did;
-      let operate;
-
-      if (operation === '+') {
-        operate = numbers[i] + numbers[i + 1];
-      } else {
-        operate = numbers[i] - numbers[i + 1];
+      if (/[x/]/.test(operation)) {
+        const i = index - did;
+        const operate =
+          operation === 'x'
+            ? numbers[i] * numbers[i + 1]
+            : numbers[i] / numbers[i + 1];
+        numbers.splice(i, 2, operate);
+        did++;
       }
-
+      return !/[x/]/.test(operation);
+    });
+    // Addition || Subtraction
+    did = 0;
+    operations = operations.map((operation, index) => {
+      const i = index - did;
+      const operate =
+        operation === '+'
+          ? numbers[i] + numbers[i + 1]
+          : numbers[i] - numbers[i + 1];
       numbers.splice(i, 2, operate);
       did++;
-      return false;
     });
-
-    setInputs({ numbers: [], operations: [] });
-    setCurrent(numbers[0]);
     setEquation(numbers[0]);
+    setCurrent(numbers[0]);
+    setInputs({ numbers: [], operations: [] });
   };
 
   return (
-    <>
-      <div id="calculator">
-        <div
-          onClick={() => handleClick('equals')}
-          className="result"
-          id="equals"
-        >
-          =
-        </div>
-        <div onClick={() => handleClick(0)} className="digitZero" id="zero">
-          0
-        </div>
-        <div
-          onClick={() => handleClick(1)}
-          className="digit"
-          id="one"
-          value="1"
-        >
-          1
-        </div>
-        <div onClick={() => handleClick(2)} className="digit" id="two">
-          2
-        </div>
-        <div onClick={() => handleClick(3)} className="digit" id="three">
-          3
-        </div>
-        <div onClick={() => handleClick(4)} className="digit" id="four">
-          4
-        </div>
-        <div onClick={() => handleClick(5)} className="digit" id="five">
-          5
-        </div>
-        <div onClick={() => handleClick(6)} className="digit" id="six">
-          6
-        </div>
-        <div onClick={() => handleClick(7)} className="digit" id="seven">
-          7
-        </div>
-        <div onClick={() => handleClick(8)} className="digit" id="eight">
-          8
-        </div>
-        <div onClick={() => handleClick(9)} className="digit" id="nine">
-          9
-        </div>
-        <div onClick={() => handleClick('+')} className="operation" id="add">
-          +
-        </div>
-        <div
-          onClick={() => handleClick('-')}
-          className="operation"
-          id="subtract"
-        >
-          -
-        </div>
-        <div
-          onClick={() => handleClick('x')}
-          className="operation"
-          id="multiply"
-        >
-          X
-        </div>
-        <div onClick={() => handleClick('/')} className="operation" id="divide">
-          /
-        </div>
-        <div onClick={() => handleClick('.')} className="dot" id="decimal">
-          .
-        </div>
-        <div onClick={() => handleClick('ac')} className="ac" id="clear">
-          AC
-        </div>
-        <div id="display" className="output">
-          {equation}
-        </div>
+    <div id="calculator">
+      <h1 id="title">JavaScript Calculator</h1>
+      <div onClick={() => handleClick(0)} className="digitZero" id="zero">
+        0
       </div>
-    </>
+      <div onClick={() => handleClick(1)} className="digit" id="one">
+        1
+      </div>
+      <div onClick={() => handleClick(2)} className="digit" id="two">
+        2
+      </div>
+      <div onClick={() => handleClick(3)} className="digit" id="three">
+        3
+      </div>
+      <div onClick={() => handleClick(4)} className="digit" id="four">
+        4
+      </div>
+      <div onClick={() => handleClick(5)} className="digit" id="five">
+        5
+      </div>
+      <div onClick={() => handleClick(6)} className="digit" id="six">
+        6
+      </div>
+      <div onClick={() => handleClick(7)} className="digit" id="seven">
+        7
+      </div>
+      <div onClick={() => handleClick(8)} className="digit" id="eight">
+        8
+      </div>
+      <div onClick={() => handleClick(9)} className="digit" id="nine">
+        9
+      </div>
+      <div onClick={() => handleClick('.')} className="digit" id="decimal">
+        .
+      </div>
+      <div onClick={() => handleClick('+')} className="operation" id="add">
+        +
+      </div>
+      <div onClick={() => handleClick('-')} className="operation" id="subtract">
+        -
+      </div>
+      <div onClick={() => handleClick('x')} className="operation" id="multiply">
+        X
+      </div>
+      <div onClick={() => handleClick('/')} className="operation" id="divide">
+        /
+      </div>
+      <div onClick={() => handleClick('ac')} id="clear">
+        AC
+      </div>
+      <div onClick={() => handleClick('equals')} id="equals">
+        =
+      </div>
+      <div id="display">{equation}</div>
+    </div>
   );
 };
 
-ReactDOM.render(<App />, document.getElementById('root'));
+ReactDOM.render(<Calculator />, document.getElementById('calculator'));
